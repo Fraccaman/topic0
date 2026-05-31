@@ -1,0 +1,79 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/shared",
+    "crates/schema",
+    "crates/sql-pg",
+    "crates/abi-schema",
+    "crates/domain",
+    "crates/abi",
+    "crates/pricing",
+    "crates/config",
+    "crates/source",
+    "crates/db",
+    "crates/db-query",
+    "crates/migrator",
+    "crates/services",
+    "crates/api",
+    "crates/observability",
+    "bins/indexer-cli",
+    "bins/query",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.90"
+
+[workspace.dependencies]
+# async
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+# evm / abi
+alloy-primitives = "1"
+alloy-json-abi = "1"
+alloy-dyn-abi = "1"
+alloy = { version = "1", features = ["provider-http", "provider-ws", "rpc-types-eth", "transports", "json-rpc", "rpc-client"] }
+# serde / config
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+figment = { version = "0.10", features = ["toml", "env"] }
+# rate limiting / retry
+governor = "0.6"
+backon = "1"
+# numbers
+rust_decimal = "1"
+# caching
+moka = { version = "0.12", features = ["future"] }
+# errors / logging
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+# metrics
+metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
+
+# internal
+shared = { path = "crates/shared" }
+schema = { path = "crates/schema" }
+sql-pg = { path = "crates/sql-pg" }
+abi-schema = { path = "crates/abi-schema" }
+domain = { path = "crates/domain" }
+abi = { path = "crates/abi" }
+pricing = { path = "crates/pricing" }
+config = { path = "crates/config" }
+source = { path = "crates/source" }
+observability = { path = "crates/observability" }
+db = { path = "crates/db" }
+migrator = { path = "crates/migrator" }
+services = { path = "crates/services" }
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-rustls"] }
+clap = { version = "4", features = ["derive"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio-util = { version = "0.7" }
+
+[profile.release]
+lto = "thin"

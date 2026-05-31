@@ -1,0 +1,9 @@
+[package]
+name = "sql-pg"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Pure ColumnType→Postgres mapping. Leaf — depends only on the schema IR.
+[dependencies]
+schema = { workspace = true }

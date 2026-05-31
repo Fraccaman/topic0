@@ -1,0 +1,48 @@
+# Copy to config.toml and fill in ${ENV} secrets. See ARCHITECTURE.md for the full spec.
+
+[indexer]
+log_level         = "info"
+batch_size        = 500
+range_concurrency = 4        # getLogs ranges in flight (backfill pipeline)
+aux_concurrency   = 8        # block/receipt RPCs per range
+tip_interval_secs = 6        # tip poll cadence; CLI --interval overrides
+
+[database]
+url       = "${DATABASE_URL}"   # postgres://user:pass@localhost:5432/indexer
+max_conns = 16
+
+[queue]
+kind         = "postgres"
+poll_ms      = 50            # worker poll interval while busy
+poll_idle_ms = 1000          # poll interval once the queue drains
+
+[query]
+api          = "graphql"
+listen       = "0.0.0.0:8080"
+expose       = "finalized"
+cache_ttl_ms = 1000          # read-cache TTL; 0 disables
+
+[[chains]]
+id            = 1
+name          = "ethereum"
+confirmations = 12
+
+  [chains.source]
+  kind = "alchemy"
+  http = "${ALCHEMY_HTTP}"
+  ws   = "${ALCHEMY_WS}"
+
+    # All provider caps explicit (omitted → PlanProfile::default()).
+    [chains.source.limits]
+    max_rps             = 8
+    max_cu_per_sec      = 330
+    max_batch           = 100
+    max_getlogs_blocks  = 10        # Alchemy free tier getLogs range cap
+    max_getlogs_results = 10_000
+    monthly_quota_cu    = 300_000_000
+
+  [[chains.contracts]]
+  address     = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"  # USDC
+  abi         = "abis/erc20.json"
+  events      = ["Transfer", "Approval"]
+  start_block = 19_000_000                # required on ≥1 contract per chain

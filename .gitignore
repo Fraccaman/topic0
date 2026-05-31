@@ -1,0 +1,7 @@
+/target
+/config.toml
+.env
+.claude/settings.json
+config copy.toml
+abis/*.json
+!abis/.keep

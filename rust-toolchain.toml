@@ -1,0 +1,6 @@
+[toolchain]
+# Latest stable Rust. Pin to a specific version (e.g. "1.94.0") for fully
+# reproducible builds if/when needed.
+channel = "stable"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

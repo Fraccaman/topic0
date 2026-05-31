@@ -1,0 +1,184 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "EVM Indexer",
+  "uid": "env-indexer",
+  "tags": ["env-indexer", "evm", "indexer"],
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "chain",
+        "label": "Chain",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(cursor_height_block, chain_id)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    { "type": "row", "title": "Health & Lag", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 1 },
+    {
+      "type": "stat", "title": "Cursor staleness (s)", "id": 2,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "red", "value": 300 } ] } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [ { "refId": "A", "expr": "time() - max by (chain_id) (last_advance_timestamp_seconds{chain_id=~\"$chain\"})", "legendFormat": "chain {{chain_id}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "Fetch lag (head - cursor)", "id": 3,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 9, "x": 6, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [ { "refId": "A", "expr": "chain_head_block{chain_id=~\"$chain\"} - on (chain_id) cursor_height_block{chain_id=~\"$chain\"}", "legendFormat": "chain {{chain_id}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "Queue depth", "id": 4,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 9, "x": 15, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [ { "refId": "A", "expr": "queue_depth", "legendFormat": "depth" } ]
+    },
+
+    { "type": "row", "title": "RPC", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 }, "id": 10 },
+    {
+      "type": "timeseries", "title": "RPC calls/sec by method", "id": 11,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [ { "refId": "A", "expr": "sum by (method) (rate(rpc_calls_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "{{method}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "RPC in-flight by method", "id": 12,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [ { "refId": "A", "expr": "sum by (method) (rpc_in_flight{chain_id=~\"$chain\"})", "legendFormat": "{{method}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "RPC p95 latency by method", "id": 13,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, method) (rate(rpc_call_duration_seconds_bucket{chain_id=~\"$chain\"}[5m])))", "legendFormat": "{{method}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "RPC retries & failures /sec", "id": 14,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 15 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (reason) (rate(rpc_retries_total[5m]))", "legendFormat": "retry {{reason}}" },
+        { "refId": "B", "expr": "sum by (reason) (rate(rpc_failures_total[5m]))", "legendFormat": "fail {{reason}}" }
+      ]
+    },
+    {
+      "type": "stat", "title": "Cache hit ratio", "id": 17,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 15 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [ { "refId": "A", "expr": "1 - (sum(rate(rpc_aux_fetched_total{chain_id=~\"$chain\"}[5m])) / clamp_min(sum(rate(rpc_aux_touched_total{chain_id=~\"$chain\"}[5m])), 1))", "legendFormat": "hit ratio" } ]
+    },
+
+    { "type": "row", "title": "Decode & Queue", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }, "id": 20 },
+    {
+      "type": "timeseries", "title": "Decoded rows/sec by table", "id": 21,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 23 },
+      "fieldConfig": { "defaults": { "unit": "rowsps" } },
+      "targets": [ { "refId": "A", "expr": "sum by (table) (rate(decode_rows_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "{{table}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "Decode p95 & errors", "id": 22,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 23 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(decode_duration_seconds_bucket{chain_id=~\"$chain\"}[5m])))", "legendFormat": "p95" },
+        { "refId": "B", "expr": "sum(rate(decode_errors_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "errors/sec" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Queue enqueue/ack/reclaim /sec", "id": 23,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 23 },
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (kind) (rate(queue_enqueued_total[5m]))", "legendFormat": "enqueue {{kind}}" },
+        { "refId": "B", "expr": "rate(queue_acks_total[5m])", "legendFormat": "ack" },
+        { "refId": "C", "expr": "rate(queue_leases_reclaimed_total[5m])", "legendFormat": "reclaim" }
+      ]
+    },
+
+    { "type": "row", "title": "Reorg & Tip/WS", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }, "id": 30 },
+    {
+      "type": "timeseries", "title": "Reorgs /sec & rollback depth p95", "id": 31,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 31 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (chain_id) (rate(reorg_detected_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "reorgs/sec {{chain_id}}" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le, chain_id) (rate(reorg_rollback_depth_blocks_bucket{chain_id=~\"$chain\"}[5m])))", "legendFormat": "depth p95 {{chain_id}}" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "WS reconnects & removed /sec", "id": 32,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 31 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by (chain_id) (rate(ws_reconnects_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "reconnects {{chain_id}}" },
+        { "refId": "B", "expr": "sum by (chain_id) (rate(ws_removed_logs_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "removed {{chain_id}}" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "WS logs received /sec", "id": 33,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 31 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [ { "refId": "A", "expr": "sum by (chain_id) (rate(ws_logs_received_total{chain_id=~\"$chain\"}[5m]))", "legendFormat": "{{chain_id}}" } ]
+    },
+
+    { "type": "row", "title": "Query API", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 }, "id": 40 },
+    {
+      "type": "timeseries", "title": "GraphQL req/sec by status", "id": 41,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 39 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [ { "refId": "A", "expr": "sum by (status, table) (rate(graphql_requests_total[5m]))", "legendFormat": "{{table}} {{status}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "GraphQL p95 latency by table", "id": 42,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 39 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, table) (rate(graphql_request_duration_seconds_bucket[5m])))", "legendFormat": "{{table}}" } ]
+    },
+    {
+      "type": "timeseries", "title": "SQL p95 latency by table", "id": 43,
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 39 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, table) (rate(query_sql_duration_seconds_bucket[5m])))", "legendFormat": "{{table}}" } ]
+    }
+  ]
+}

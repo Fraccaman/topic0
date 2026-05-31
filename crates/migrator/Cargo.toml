@@ -1,0 +1,14 @@
+[package]
+name = "migrator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+shared = { workspace = true }
+schema = { workspace = true }
+sql-pg = { workspace = true }
+domain = { workspace = true }
+sqlx = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }

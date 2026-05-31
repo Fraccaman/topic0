@@ -1,0 +1,18 @@
+[package]
+name = "services"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+shared = { workspace = true }
+schema = { workspace = true }
+domain = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+metrics = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+futures = { workspace = true }
+pricing = { workspace = true }

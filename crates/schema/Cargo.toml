@@ -1,0 +1,8 @@
+[package]
+name = "schema"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Zero-dependency leaf — the neutral schema IR has no external deps.
+[dependencies]

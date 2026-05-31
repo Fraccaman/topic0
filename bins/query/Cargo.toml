@@ -1,0 +1,24 @@
+[package]
+name = "query-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "indexer-query"
+path = "src/main.rs"
+
+[dependencies]
+config = { workspace = true }
+db = { workspace = true }
+domain = { workspace = true }
+source = { workspace = true }
+observability = { workspace = true }
+db-query = { path = "../../crates/db-query" }
+api = { path = "../../crates/api" }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

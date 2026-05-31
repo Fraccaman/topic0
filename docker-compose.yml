@@ -1,0 +1,86 @@
+# Profiles:
+#   db        - Postgres only
+#   migrate   - one-shot: diff ABIs -> apply DDL, then exit
+#   indexer   - supervisor: per-chain ingest loops (enqueue) + in-process decode pool
+#   decode    - standalone decode-worker pool (scale horizontally with --scale)
+#   query     - GraphQL read API on :8080
+#
+# Examples:
+#   docker compose --profile db up -d
+#   docker compose --profile migrate up                  # apply schema once
+#   docker compose --profile indexer --profile query up -d
+#   # scale decode throughput for many / fast chains:
+#   docker compose --profile indexer up -d
+#   docker compose --profile decode up -d --scale decode=4
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: env-indexer:latest
+  environment:
+    INDEXER_DATABASE__URL: postgres://${POSTGRES_USER:-indexer}:${POSTGRES_PASSWORD:-indexer}@postgres:5432/${POSTGRES_DB:-indexer}
+    RUST_LOG: ${RUST_LOG:-info}
+  volumes:
+    - ./config.toml:/app/config.toml:ro
+  # Allow in-flight range/decode to drain on SIGTERM before SIGKILL.
+  stop_grace_period: 45s
+  depends_on:
+    postgres:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    profiles: [db, migrate, indexer, decode, query]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-indexer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-indexer}
+      POSTGRES_DB: ${POSTGRES_DB:-indexer}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-indexer} -d ${POSTGRES_DB:-indexer}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot: diff config ABIs against the DB and apply DDL.
+  migrate:
+    <<: *app
+    profiles: [migrate]
+    command: ["migrate", "--config", "config.toml"]
+    restart: "no"
+
+  # Supervisor: ingest every configured chain (enqueue) + an in-process decode
+  # worker pool. Single container drives all chains.
+  indexer:
+    <<: *app
+    profiles: [indexer]
+    command: ["run", "--config", "config.toml", "--workers", "${WORKERS:-4}"]
+    ports:
+      - "${METRICS_PORT:-9100}:9100"
+
+  # Standalone decode workers — competing consumers of the shared work_queue.
+  # Scale out for many / fast-blocktime chains: `--scale decode=N`.
+  decode:
+    <<: *app
+    profiles: [decode]
+    command: ["decode", "--config", "config.toml", "--workers", "${WORKERS:-4}"]
+
+  # Read-only GraphQL API.
+  query:
+    <<: *app
+    profiles: [query]
+    entrypoint: ["indexer-query"]
+    command: ["--config", "config.toml"]
+    ports:
+      - "${QUERY_PORT:-8080}:8080"
+
+volumes:
+  pgdata:
+    name: env-indexer-pgdata

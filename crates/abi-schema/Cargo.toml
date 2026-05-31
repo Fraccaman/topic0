@@ -1,0 +1,13 @@
+[package]
+name = "abi-schema"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+schema = { workspace = true }
+shared = { workspace = true }
+alloy-json-abi = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

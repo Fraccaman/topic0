@@ -1,0 +1,23 @@
+[package]
+name = "source"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+shared = { workspace = true }
+schema = { workspace = true }
+domain = { workspace = true }
+pricing = { workspace = true }
+config = { workspace = true }
+abi = { workspace = true }
+alloy = { workspace = true }
+alloy-primitives = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+governor = { workspace = true }
+backon = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+metrics = { workspace = true }

@@ -1,0 +1,11 @@
+[package]
+name = "domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+shared = { workspace = true }
+schema = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
